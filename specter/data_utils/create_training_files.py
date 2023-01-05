@@ -489,9 +489,9 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
 if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('--data-dir', help='path to a directory containing `data.json`, `train.csv`, `dev.csv` and `test.csv` files')
-    ap.add_argument('--metadata', help='path to the metadata file')
-    ap.add_argument('--outdir', help='output directory to files')
+    ap.add_argument('--data-dir', help='path to a directory containing `data.json`, `train.csv`, `dev.csv` and `test.csv` files', default = 'data/training')
+    ap.add_argument('--metadata', help='path to the metadata file', default = 'data/training/metadata.json')
+    ap.add_argument('--outdir', help='output directory to files', default = 'data/preprocessed/')
     ap.add_argument('--njobs', help='number of parallel jobs for instance conversion', default=1, type=int)
     ap.add_argument('--njobs_raw', help='number of parallel jobs for triplet generation', default=12, type=int)
     ap.add_argument('--ratio_hard_negatives', default=0.3, type=float)
