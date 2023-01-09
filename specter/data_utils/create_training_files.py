@@ -24,6 +24,273 @@ import multiprocessing
 
 from specter.data_utils import triplet_sampling_parallel
 
+"""
+START TRIPLET SAMPLING PARALLEL
+"""
+import numpy as np
+import random
+import operator
+import math
+
+np.random.seed(321)
+random.seed(321)
+
+
+def is_int(n):
+    """ checks if a number is float. 2.0 is True while 0.3 is False"""
+    return round(n) == n
+
+_coviews = None
+_margin_fraction = None
+_paper_ids_set = None
+_samples_per_query = None
+_ratio_hard_negatives = None
+
+
+# def _get_triplet(query, coviews, margin_fraction, paper_ids_set, samples_per_query, ratio_hard_negatives):
+def _get_triplet(query):
+    global _coviews
+    global _margin_fraction
+    global _paper_ids_set
+    global _samples_per_query
+    global _ratio_hard_negatives
+    global _incitations
+
+    if query not in _coviews:
+        return
+    # self.coviews[query] is a dictionary of format {paper_id: {count: 1, frac: 1}}
+    candidates = [(k, v['count']) for k, v in _coviews[query].items()]
+    candidates = sorted(candidates, key=operator.itemgetter(1), reverse=True)
+    if len(candidates) > 1:
+        coview_spread = candidates[0][1] - candidates[-1][1]
+    else:
+        coview_spread = 0
+    margin = _margin_fraction * coview_spread  # minimum margin of coviews between good and bad sample
+
+    # If distance is 1 increase margin to 1 otherwise any margin_fraction will pass
+    if is_int(candidates[0][1]) and is_int(candidates[-1][1]) and coview_spread == 1:
+        margin = np.ceil(margin)
+
+
+    results = []
+
+    # -------- hard triplets
+    if len(candidates) > 2 and margin != 0:
+
+        # find valid candidates by going through sorted
+        # list and finding index of first sample with max coviews - margin
+        for j in range(len(candidates)):
+            if candidates[j][1] < (candidates[0][1] - margin):
+                candidates_hard_neg = candidates[j:]
+                break
+            else:
+                candidates_hard_neg = []
+
+        neg_len = len(candidates_hard_neg)
+        pos_len = len(candidates) - neg_len
+
+        if neg_len > 0:
+
+            # generate hard candidates
+            n_hard_samples = math.ceil(_ratio_hard_negatives * _samples_per_query)
+            # if there aren't enough candidates to generate enough unique samples
+            # reduce the number of samples to make it possible for them to be unique
+            if (pos_len * neg_len) < n_hard_samples:
+                n_hard_samples = pos_len * neg_len
+
+            for i in range(n_hard_samples):
+                # find the negative sample first.
+                neg = candidates_hard_neg[np.random.randint(len(candidates_hard_neg))]  # random neg sample from candidates
+
+                candidates_pos = []
+                # find the good sample. find valid candidates by going through sorted list
+                # in reverse and finding index of first sample with bad sample + margin
+                for j in range(len(candidates) - 1, -1, -1):
+                    if candidates[j][1] > (neg[1] + margin):
+                        candidates_pos = candidates[0:j + 1]
+                        break
+
+                if candidates_pos:
+                    pos = candidates_pos[np.random.randint(len(candidates_pos))]  # random pos sample from candidates
+
+                    # append the good and bad samples with their coview number to output
+                    results.append([query, pos, neg])
+
+        n_easy_samples = _samples_per_query - len(results)
+
+        # ---------- easy triplets
+
+        # valid candidates are those with zeros
+        candidates_zero = list(_paper_ids_set.difference([i[0] for i in candidates] + [query]))
+
+        # find valid candidates for good sample by going through sorted list
+        # in reverse and finding index of first sample with at least margin coviews
+        # note: this is another way to write candidates_pos = [i for i in candidates if i[1] > margin]
+        # but is much faster for large candidate arrays
+        for j in range(len(candidates) - 1, -1, -1):
+            if candidates[j][1] > margin + candidates[-1][1]:
+                candidates_pos = candidates[0:j + 1]
+                break
+            else:
+                candidates_pos = []
+
+        # if there are no valid candidates for good rec, return None to trigger query resample
+        if candidates and len(candidates_pos) > 0:
+            easy_samples: List = []
+            for i in range(n_easy_samples):
+                pos = candidates_pos[np.random.randint(len(candidates_pos))]  # random good sample from candidates
+                neg = candidates_zero[np.random.randint(len(candidates_zero))]  # random zero
+                easy_samples.append([query, pos, (neg, float("-inf"))])
+            results.extend(easy_samples)
+
+    return results
+
+def _get_triplet_prob(query):
+    global _coviews
+    global _margin_fraction
+    global _paper_ids_set
+    global _samples_per_query
+    global _ratio_hard_negatives
+    global _incitations
+
+    if query not in _coviews:
+        return
+    # self.coviews[query] is a dictionary of format {paper_id: {count: 1, frac: 1}}
+    candidates = [(k, v['count']) for k, v in _coviews[query].items()]
+    candidates = sorted(candidates, key=operator.itemgetter(1), reverse=True)
+    if len(candidates) > 1:
+        coview_spread = candidates[0][1] - candidates[-1][1]
+    else:
+        coview_spread = 0
+    margin = _margin_fraction * coview_spread  # minimum margin of coviews between good and bad sample
+
+    # If distance is 1 increase margin to 1 otherwise any margin_fraction will pass
+    if is_int(candidates[0][1]) and is_int(candidates[-1][1]) and coview_spread == 1:
+        margin = np.ceil(margin)
+
+
+    results = []
+
+    # -------- hard triplets
+    if len(candidates) > 2 and margin != 0:
+
+        # find valid candidates by going through sorted
+        # list and finding index of first sample with max coviews - margin
+        for j in range(len(candidates)):
+            if candidates[j][1] < (candidates[0][1] - margin):
+                candidates_hard_neg = candidates[j:]
+                break
+            else:
+                candidates_hard_neg = []
+
+        neg_len = len(candidates_hard_neg)
+        pos_len = len(candidates) - neg_len
+
+        if neg_len > 0:
+
+            # generate hard candidates
+            n_hard_samples = math.ceil(_ratio_hard_negatives * _samples_per_query)
+            # if there aren't enough candidates to generate enough unique samples
+            # reduce the number of samples to make it possible for them to be unique
+            if (pos_len * neg_len) < n_hard_samples:
+                n_hard_samples = pos_len * neg_len
+
+            for i in range(n_hard_samples):
+                # find the negative sample first.
+                neg = candidates_hard_neg[np.random.randint(len(candidates_hard_neg))]  # random neg sample from candidates
+
+                candidates_pos = []
+                # find the good sample. find valid candidates by going through sorted list
+                # in reverse and finding index of first sample with bad sample + margin
+                for j in range(len(candidates) - 1, -1, -1):
+                    if candidates[j][1] > (neg[1] + margin):
+                        candidates_pos = candidates[0:j + 1]
+                        break
+
+                if candidates_pos:
+                    incitations = [_incitations[candidate[0]] for candidate in candidates_pos]
+                    incitations = [incitation / sum(incitations) for incitation in incitations]
+
+                    pos = candidates_pos[np.random.choice(len(candidates_pos), p = incitations)]
+
+                    # append the good and bad samples with their coview number to output
+                    results.append([query, pos, neg])
+
+        n_easy_samples = _samples_per_query - len(results)
+
+        # ---------- easy triplets
+
+        # valid candidates are those with zeros
+        candidates_zero = list(_paper_ids_set.difference([i[0] for i in candidates] + [query]))
+
+        # find valid candidates for good sample by going through sorted list
+        # in reverse and finding index of first sample with at least margin coviews
+        # note: this is another way to write candidates_pos = [i for i in candidates if i[1] > margin]
+        # but is much faster for large candidate arrays
+        for j in range(len(candidates) - 1, -1, -1):
+            if candidates[j][1] > margin + candidates[-1][1]:
+                candidates_pos = candidates[0:j + 1]
+                break
+            else:
+                candidates_pos = []
+
+        # if there are no valid candidates for good rec, return None to trigger query resample
+        if candidates and len(candidates_pos) > 0:
+            easy_samples: List = []
+            for i in range(n_easy_samples):
+                incitations = [_incitations[candidate[0]] for candidate in candidates_pos]
+                incitations = [incitation / sum(incitations) for incitation in incitations]
+
+                pos = candidates_pos[np.random.choice(len(candidates_pos), p = incitations)]  # random good sample from candidates
+                neg = candidates_zero[np.random.randint(len(candidates_zero))]  # random zero
+                easy_samples.append([query, pos, (neg, float("-inf"))])
+            results.extend(easy_samples)
+
+    return results
+
+def generate_triplets(paper_ids, coviews, margin_fraction, samples_per_query, ratio_hard_negatives, query_ids, incitations, data_subset=None, n_jobs=1):
+    global _coviews
+    global _margin_fraction
+    global _samples_per_query
+    global _ratio_hard_negatives
+    global _query_ids
+    global _paper_ids_set
+    global _incitations
+
+    _coviews = coviews
+    _margin_fraction = margin_fraction
+    _samples_per_query = samples_per_query
+    _ratio_hard_negatives = ratio_hard_negatives
+    _query_ids = query_ids
+    _paper_ids_set = set(paper_ids)
+    _incitations = incitations
+    logger.info(f'generating triplets with: samples_per_query:{_samples_per_query},'
+                f'ratio_hard_negatives:{_ratio_hard_negatives}, margin_fraction:{_margin_fraction}')
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!CHANGE n_jobs!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if n_jobs == 1:
+        if _incitations:
+            results = [_get_triplet_prob(query) for query in tqdm.tqdm(query_ids)]
+        else:
+            results = [_get_triplet(query) for query in tqdm.tqdm(query_ids)]
+    elif n_jobs > 0:
+        logger.info(f'running {n_jobs} parallel jobs to get triplets for {data_subset or "not-specified"} set')
+        with Pool(n_jobs) as p:
+            if _incitations:
+                results = list(tqdm.tqdm(p.imap(_get_triplet_prob, query_ids), total=len(query_ids)))
+            else:
+                results = list(tqdm.tqdm(p.imap(_get_triplet, query_ids), total=len(query_ids)))
+    else:
+        raise RuntimeError(f"bad argument `n_jobs`={n_jobs}, `n_jobs` should be -1 or >0")
+    for res in results:
+        if res:
+            for triplet in res:
+                yield triplet
+
+"""
+END TRIPLET SAMPLING PARALLEL
+"""
+
+
 
 def init_logger(*, fn=None):
 
@@ -246,6 +513,7 @@ class TrainingInstanceGenerator:
     def __init__(self,
                  data,
                  metadata,
+                 add_probabilities,
                  samples_per_query: int = 5,
                  margin_fraction: float = 0.5,
                  ratio_hard_negatives: float = 0.3,
@@ -258,6 +526,7 @@ class TrainingInstanceGenerator:
         self.data_source = data_source
 
         self.data = data
+        self.add_probabilities = add_probabilities
         # self.triplet_generator = TripletGenerator(
         #     paper_ids=list(metadata.keys()),
         #     coviews=data,
@@ -279,11 +548,31 @@ class TrainingInstanceGenerator:
             authors = paper.get('author-names')
             author_ids = paper.get('authors')
             references = paper.get('references')
-            features = paper.get('abstract'), paper.get('title'), venue, year, body, authors, references
+            features = paper.get('abstract'), paper.get('title'), venue, year, body, author_ids, references
             self.paper_feature_cache[paper_id] = features
             return features
         else:
             return None, None, None, None, None, None, None
+
+    def find_incitations(self):
+        """
+        It creates a dictionary which associates to each paper_id in self.data the associated number of incitations.
+        """
+        incitations_dict = {}
+        # iterate over all the papers.
+        for cited_papers in self.data.values():
+            for cited_paper_id, cited_count in cited_papers.items():
+                # we are only interested in direct citations, i.e. 'count' : 5
+                if cited_count['count'] == 5:
+                    # check if it is the first time that you find this paper_id
+                    # if so, initialise the counter to 1
+                    if cited_paper_id not in incitations_dict:
+                        incitations_dict[cited_paper_id] = 1
+                    # this is not the first time, i.e., increment the counter
+                    else:
+                        incitations_dict[cited_paper_id] += 1
+
+        return incitations_dict
 
     def get_raw_instances(self, query_ids, subset_name=None, n_jobs=10):
         """
@@ -303,9 +592,14 @@ class TrainingInstanceGenerator:
         logger.info('Generating triplets ...')
         count_success, count_fail = 0, 0
         # instances = []
-        for triplet in triplet_sampling_parallel.generate_triplets(list(self.metadata.keys()), self.data,
+        if self.add_probabilities:
+            incitations_dict = self.find_incitations()
+        else:
+            incitations_dict = {}
+
+        for triplet in generate_triplets(list(self.metadata.keys()), self.data,
                                                             self.margin_fraction, self.samples_per_query,
-                                                            self.ratio_hard_negatives, query_ids,
+                                                            self.ratio_hard_negatives, query_ids, incitations_dict,
                                                             data_subset=subset_name, n_jobs=n_jobs):
             try:
                 query_paper = self.metadata[triplet[0]]
@@ -361,7 +655,7 @@ class TrainingInstanceGenerator:
                      f"total: {count_success+count_fail}")
 
 
-def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_jobs_raw=12,
+def get_instances(data, query_ids_file, metadata, add_probabilities = False, data_source=None, n_jobs=1, n_jobs_raw=12,
                   ratio_hard_negatives=0.3, margin_fraction=0.5, samples_per_query=5,
                   concat_title_abstract=False, included_text_fields='title abstract'):
     """
@@ -370,6 +664,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
         data: the data file (e.g., coviews, or cocites)
         query_ids_file: train.csv file (one query paper id per line)
         metadata: a json file containing mapping between paper ids and paper dictionaries
+        add_probabilities: our improvement ♥
         data_source: the source of the data (e.g., is it coviews, cite1hop, copdf?)
         n_jobs: number of jobs to process allennlp instance conversion
         n_jobs_raw: number of jobs to generate raw triplets
@@ -386,7 +681,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
 
     generator = TrainingInstanceGenerator(data=data, metadata=metadata, data_source=data_source,
                                           margin_fraction=margin_fraction, ratio_hard_negatives=ratio_hard_negatives,
-                                          samples_per_query=samples_per_query)
+                                          samples_per_query=samples_per_query, add_probabilities = add_probabilities)
 
     set_values(max_sequence_length=512,
                concat_title_abstract=concat_title_abstract,
@@ -416,7 +711,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
 
 def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs=1, njobs_raw=1,
          margin_fraction=0.5, ratio_hard_negatives=0.3, samples_per_query=5, comment='', bert_vocab='',
-         concat_title_abstract=False, included_text_fields='title abstract'):
+         concat_title_abstract=False, included_text_fields='title abstract', add_probabilities = False):
     """
     Generates instances from a list of datafiles and stores them as a stream of objects
     Args:
@@ -426,6 +721,7 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
         test_ids: list of test paper ids
         metadata_file: path to the metadata file (should cover all data files)
         outdir: path to an output directory
+        add_probabilities: our improvement ♥
         n_jobs: number of parallel jobs for converting instances
             (in practice we did not find parallelization to help with this)
         njobs_raw: number of parallel jobs for generating triplets
@@ -452,7 +748,7 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
         logger.info(f'loading data file: {data_file}')
         with open(data_file) as f_in:
             data = json.load(f_in)
-        data_source = data_file.split('/')[-1][:-5]  # e.g., coviews_v2012
+        data_source = data_file.replace('/', '\\').split('\\')[-1][:-5]  # e.g., coviews_v2012
         if comment:
             data_source += f'-{comment}'
 
@@ -474,7 +770,8 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
                                               ratio_hard_negatives=ratio_hard_negatives,
                                               samples_per_query=samples_per_query,
                                               concat_title_abstract=concat_title_abstract,
-                                              included_text_fields=included_text_fields):
+                                              included_text_fields=included_text_fields,
+                                              add_probabilities = add_probabilities):
                     pickler.dump(instance)
                     idx += 1
                     # to prevent from memory blow
@@ -484,14 +781,17 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
         with open(f'{outdir}/{data_source}-metrics.json', 'w') as f_out2:
             json.dump(metrics, f_out2, indent=2)
 
-
+def boolean_string(s):
+    if s.lower() not in {'false', 'true'}:
+        raise ValueError('Not a valid boolean string')
+    return s.lower() == 'true'
 
 if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('--data-dir', help='path to a directory containing `data.json`, `train.csv`, `dev.csv` and `test.csv` files', default = 'data/training')
-    ap.add_argument('--metadata', help='path to the metadata file', default = 'data/training/metadata.json')
-    ap.add_argument('--outdir', help='output directory to files', default = 'data/preprocessed/')
+    ap.add_argument('--data-dir', help='path to a directory containing `data.json`, `train.csv`, `dev.csv` and `test.csv` files', default = 'project_data')
+    ap.add_argument('--metadata', help='path to the metadata file',  default = 'project_data/metadata.json')
+    ap.add_argument('--outdir', help='output directory to files', default = 'project_data/preprocessed/')
     ap.add_argument('--njobs', help='number of parallel jobs for instance conversion', default=1, type=int)
     ap.add_argument('--njobs_raw', help='number of parallel jobs for triplet generation', default=12, type=int)
     ap.add_argument('--ratio_hard_negatives', default=0.3, type=float)
@@ -503,6 +803,7 @@ if __name__ == '__main__':
     ap.add_argument('--concat-title-abstract', action='store_true', default=False)
     ap.add_argument('--included-text-fields', default='title abstract', help='space delimieted list of fields to include in the main text field'
                                                                              'possible values: `title`, `abstract`, `authors`')
+    ap.add_argument('--add-probabilities', default = True, type = boolean_string, help = 'our cheeky improvement ♥')                                                                         
     args = ap.parse_args()
 
     data_file = os.path.join(args.data_dir, 'data.json')
@@ -519,5 +820,6 @@ if __name__ == '__main__':
     main([data_file], [train_ids], [val_ids], [test_ids], metadata_file, args.outdir, args.njobs, args.njobs_raw,
          margin_fraction=args.margin_fraction, ratio_hard_negatives=args.ratio_hard_negatives,
          samples_per_query=args.samples_per_query, comment=args.comment, bert_vocab=args.bert_vocab,
-         concat_title_abstract=args.concat_title_abstract, included_text_fields=args.included_text_fields
+         concat_title_abstract=args.concat_title_abstract, included_text_fields=args.included_text_fields,
+         add_probabilities = args.add_probabilities
          )
