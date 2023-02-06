@@ -266,14 +266,20 @@ def generate_triplets(paper_ids, coviews, margin_fraction, samples_per_query, ra
     _incitations = incitations
     logger.info(f'generating triplets with: samples_per_query:{_samples_per_query},'
                 f'ratio_hard_negatives:{_ratio_hard_negatives}, margin_fraction:{_margin_fraction}')
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!CHANGE n_jobs!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     if n_jobs == 1:
         if _incitations:
+            logger.info(f'embedding will be trained based on our improvement.')
             results = [_get_triplet_prob(query) for query in tqdm.tqdm(query_ids)]
         else:
+            logger.info(f'specter-like training.')
             results = [_get_triplet(query) for query in tqdm.tqdm(query_ids)]
     elif n_jobs > 0:
         logger.info(f'running {n_jobs} parallel jobs to get triplets for {data_subset or "not-specified"} set')
+        if _incitations:
+            logger.info(f'embedding will be trained based on our improvement.')
+        else:
+            logger.info(f'specter-like training.')
         with Pool(n_jobs) as p:
             if _incitations:
                 results = list(tqdm.tqdm(p.imap(_get_triplet_prob, query_ids), total=len(query_ids)))
@@ -574,7 +580,7 @@ class TrainingInstanceGenerator:
 
         return incitations_dict
 
-    def get_raw_instances(self, query_ids, subset_name=None, n_jobs=10):
+    def get_raw_instances(self, query_ids, subset_name=None, n_jobs=10, max_training_triplets:int=None):
         """
         Given query ids, it generates triplets and returns corresponding instances
         These are raw instances (i.e., untensorized objects )
@@ -596,11 +602,17 @@ class TrainingInstanceGenerator:
             incitations_dict = self.find_incitations()
         else:
             incitations_dict = {}
-
+        
+        # counter to keep track of the number of triplets
+        # used to cap the total number of training triplets 
+        count_training_triplets = 0
         for triplet in generate_triplets(list(self.metadata.keys()), self.data,
                                                             self.margin_fraction, self.samples_per_query,
                                                             self.ratio_hard_negatives, query_ids, incitations_dict,
                                                             data_subset=subset_name, n_jobs=n_jobs):
+            
+            if max_training_triplets and count_training_triplets == max_training_triplets:
+                break
             try:
                 query_paper = self.metadata[triplet[0]]
                 pos_paper = self.metadata[triplet[1][0]]
@@ -621,6 +633,8 @@ class TrainingInstanceGenerator:
                     self._get_paper_features(query_paper)
                 pos_abstract, pos_title, pos_venue, pos_year, pos_body, pos_authors, pos_refs = self._get_paper_features(pos_paper)
                 neg_abstract, neg_title, neg_venue, neg_year, neg_body, neg_authors, neg_refs = self._get_paper_features(neg_paper)
+
+                count_training_triplets += 1
 
                 instance = {
                     "query_abstract": query_abstract,
@@ -657,7 +671,7 @@ class TrainingInstanceGenerator:
 
 def get_instances(data, query_ids_file, metadata, add_probabilities = False, data_source=None, n_jobs=1, n_jobs_raw=12,
                   ratio_hard_negatives=0.3, margin_fraction=0.5, samples_per_query=5,
-                  concat_title_abstract=False, included_text_fields='title abstract'):
+                  concat_title_abstract=False, included_text_fields='title abstract', max_training_triplets:int=None):
     """
     Gets allennlp instances from the data file
     Args:
@@ -691,7 +705,7 @@ def get_instances(data, query_ids_file, metadata, add_probabilities = False, dat
     query_ids = [line.strip() for line in open(query_ids_file)]
 
     instances_raw = [e for e in generator.get_raw_instances(
-        query_ids, subset_name=query_ids_file.split('/')[-1][:-4], n_jobs=n_jobs_raw)]
+        query_ids, subset_name=query_ids_file.split('/')[-1][:-4], n_jobs=n_jobs_raw, max_training_triplets=max_training_triplets)]
 
     if n_jobs == 1:
         logger.info(f'converting raw instances to allennlp instances:')
@@ -711,7 +725,8 @@ def get_instances(data, query_ids_file, metadata, add_probabilities = False, dat
 
 def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs=1, njobs_raw=1,
          margin_fraction=0.5, ratio_hard_negatives=0.3, samples_per_query=5, comment='', bert_vocab='',
-         concat_title_abstract=False, included_text_fields='title abstract', add_probabilities = False):
+         concat_title_abstract=False, included_text_fields='title abstract', add_probabilities=False,
+         max_training_triplets:int=None):
     """
     Generates instances from a list of datafiles and stores them as a stream of objects
     Args:
@@ -771,7 +786,9 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
                                               samples_per_query=samples_per_query,
                                               concat_title_abstract=concat_title_abstract,
                                               included_text_fields=included_text_fields,
-                                              add_probabilities = add_probabilities):
+                                              add_probabilities=add_probabilities,
+                                              max_training_triplets=max_training_triplets if ds_name == 'train' else None
+                                              ):
                     pickler.dump(instance)
                     idx += 1
                     # to prevent from memory blow
@@ -791,7 +808,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--data-dir', help='path to a directory containing `data.json`, `train.csv`, `dev.csv` and `test.csv` files', default = 'project_data')
     ap.add_argument('--metadata', help='path to the metadata file',  default = 'project_data/metadata.json')
-    ap.add_argument('--outdir', help='output directory to files', default = 'project_data/preprocessed/')
+    ap.add_argument('--outdir', help='output directory to files', default = 'bin/')
     ap.add_argument('--njobs', help='number of parallel jobs for instance conversion', default=1, type=int)
     ap.add_argument('--njobs_raw', help='number of parallel jobs for triplet generation', default=12, type=int)
     ap.add_argument('--ratio_hard_negatives', default=0.3, type=float)
@@ -803,7 +820,8 @@ if __name__ == '__main__':
     ap.add_argument('--concat-title-abstract', action='store_true', default=False)
     ap.add_argument('--included-text-fields', default='title abstract', help='space delimieted list of fields to include in the main text field'
                                                                              'possible values: `title`, `abstract`, `authors`')
-    ap.add_argument('--add-probabilities', default = True, type = boolean_string, help = 'our cheeky improvement ♥')                                                                         
+    ap.add_argument('--add-probabilities', default = True, type = boolean_string, help = 'our cheeky improvement ♥')    
+    ap.add_argument('--max-training-triplets', default = 150_000, type = int, help = 'maximum number of training triplets')                                                                     
     args = ap.parse_args()
 
     data_file = os.path.join(args.data_dir, 'data.json')
@@ -821,5 +839,5 @@ if __name__ == '__main__':
          margin_fraction=args.margin_fraction, ratio_hard_negatives=args.ratio_hard_negatives,
          samples_per_query=args.samples_per_query, comment=args.comment, bert_vocab=args.bert_vocab,
          concat_title_abstract=args.concat_title_abstract, included_text_fields=args.included_text_fields,
-         add_probabilities = args.add_probabilities
+         add_probabilities=args.add_probabilities, max_training_triplets=args.max_training_triplets
          )
