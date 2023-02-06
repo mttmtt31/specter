@@ -6,7 +6,7 @@ import os
 import argparse
 import random
 
-def split_data(data, train_file, val_file, test_file, train_size:int=0.7, val_size:int=0.15, test_size:int=0.15):
+def split_data(data, train_file, val_file, test_file, train_size, val_size, test_size):
     """Given a list, saves three files train.txt val.txt test.txt with arbitrary random split.
 
     Args:
@@ -19,8 +19,8 @@ def split_data(data, train_file, val_file, test_file, train_size:int=0.7, val_si
     random.shuffle(data)
     # train val test split
     train_data = data[:int(train_size * len(data))]
-    val_data = data[int(train_size * len(data)):int(train_size * len(data)) + int(val_data * len(data))]
-    test_data = data[int(train_size * len(data)) + int(test_data * len(data)):]
+    val_data = data[int(train_size * len(data)):int(train_size * len(data)) + int(val_size * len(data))]
+    test_data = data[int(train_size * len(data)) + int(test_size * len(data)):]
     
     # save files
     with open(train_file, 'w') as f:
@@ -99,7 +99,7 @@ def load_data(data_dir:str):
     data = dict(dict(data_mag_mesh, **data_recomm), **data_view_cite)
     return data
 
-def main(data_dir:str, output_dir:str, checkpoint:bool=False, checkpoint_freq:int=20_000):
+def main(data_dir:str, output_dir:str, checkpoint:bool, checkpoint_freq:int, train_size:float, val_size:float, test_size:float):
     """Create data.json file as per SPECTER specifications, starting from all Scidocs metadata files.
 
     Args:
@@ -191,7 +191,7 @@ def main(data_dir:str, output_dir:str, checkpoint:bool=False, checkpoint_freq:in
             json.dump(citation_network, f)
 
     # create the train.txt, val.txt, test.txt file
-    split_data(paper_keys, 'train.txt', 'val.txt', 'test.txt')
+    split_data(paper_keys, 'train.txt', 'val.txt', 'test.txt', train_size, val_size, test_size)
 
     
 
@@ -200,14 +200,31 @@ def boolean_string(s):
         raise ValueError('Not a valid boolean string')
     return s.lower() == 'true'
 
+def restricted_float(x):
+    try:
+        x = float(x)
+    except ValueError:
+        raise argparse.ArgumentTypeError("%r not a floating-point literal" % (x,))
+
+    if x < 0.0 or x > 1.0:
+        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
+    return x
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--data-dir', help='directory containing Scidocs metadata files')
     ap.add_argument('--output-dir', help='directory where the user wishes to save data.json')
     ap.add_argument('--checkpoint', help='parameter used to recover from crashes',  default = False, type = boolean_string)
     ap.add_argument('--checkpoint-freq', help='how often do you want to dump the results', default=20000, type=int)
+    ap.add_argument('--train-split', help='size of train split', type=restricted_float, default=0.7)
+    ap.add_argument('--val-split', help='size of val split', type=restricted_float, default=0.15)
+    
     args = ap.parse_args()
+    train_size = args.train_size
+    val_size = args.val_size
+    test_size = 1 - train_size - val_size
 
-    main(data_dir=args.data_dir, output_dir=args.output_dir, checkpoint=args.checkpoint, checkpoint_freq=args.checkpoint_freq)
+    main(data_dir=args.data_dir, output_dir=args.output_dir, checkpoint=args.checkpoint, checkpoint_freq=args.checkpoint_freq,
+    train_size = train_size, val_size = val_size, test_size = test_size)
 
 # create_scidocs(data_dir='D:/nlp/scidocs/data', output_dir='output', checkpoint=True, checkpoint_freq=15)
