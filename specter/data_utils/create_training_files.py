@@ -678,7 +678,7 @@ def get_instances(data, query_ids_file, metadata, add_probabilities = False, dat
         data: the data file (e.g., coviews, or cocites)
         query_ids_file: train.csv file (one query paper id per line)
         metadata: a json file containing mapping between paper ids and paper dictionaries
-        add_probabilities: our improvement ♥
+        add_probabilities: our improvement 
         data_source: the source of the data (e.g., is it coviews, cite1hop, copdf?)
         n_jobs: number of jobs to process allennlp instance conversion
         n_jobs_raw: number of jobs to generate raw triplets
@@ -736,7 +736,7 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
         test_ids: list of test paper ids
         metadata_file: path to the metadata file (should cover all data files)
         outdir: path to an output directory
-        add_probabilities: our improvement ♥
+        add_probabilities: our improvement 
         n_jobs: number of parallel jobs for converting instances
             (in practice we did not find parallelization to help with this)
         njobs_raw: number of parallel jobs for generating triplets
@@ -820,7 +820,7 @@ if __name__ == '__main__':
     ap.add_argument('--concat-title-abstract', action='store_true', default=False)
     ap.add_argument('--included-text-fields', default='title abstract', help='space delimieted list of fields to include in the main text field'
                                                                              'possible values: `title`, `abstract`, `authors`')
-    ap.add_argument('--add-probabilities', default = True, type = boolean_string, help = 'our cheeky improvement ♥')    
+    ap.add_argument('--add-probabilities', default = True, type = boolean_string, help = 'whether you want to use our improvement or pure SPECTER')    
     ap.add_argument('--max-training-triplets', default = 150_000, type = int, help = 'maximum number of training triplets')                                                                     
     args = ap.parse_args()
 
