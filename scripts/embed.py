@@ -19,17 +19,16 @@ import argparse
 
 import logging
 
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ids', help='path to the paper ids file to embed')
-    parser.add_argument('--model', help='path to the model')
-    parser.add_argument('--metadata', help='path to the paper metadata')
-    parser.add_argument('--output-file', help='path to the output file')
-    parser.add_argument('--cuda-device', default=0, type=str)
-    parser.add_argument('--batch-size', default=1, type=str)
+    parser.add_argument('--ids', default = "data/sample.ids", help='path to the paper ids file to embed')
+    parser.add_argument('--model', default = "./model.tar.gz", help='path to the model')
+    parser.add_argument('--metadata', default = "data/sample-metadata.json", help='path to the paper metadata')
+    parser.add_argument('--output-file', default = "output.jsonl", help='path to the output file')
+    parser.add_argument('--cuda-device', default="-1", type=str)
+    parser.add_argument('--batch-size', default="16", type=str)
     parser.add_argument('--vocab-dir', default='data/vocab/')
-    parser.add_argument('--included-text-fields', default='abstract title')
+    parser.add_argument('--included-text-fields', default='title')
     parser.add_argument('--weights-file', default=None)
 
     args = parser.parse_args()
