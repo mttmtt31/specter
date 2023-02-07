@@ -1,7 +1,10 @@
 import json
 from tqdm import tqdm
 import os
-import subprocess
+import random
+import argparse
+from kaggle.api.kaggle_api_extended import KaggleApi
+import pandas as pd
 
 def get_metadata(data_file:str):
     """Instead of loading the entire json in memory, scans through the lines one at the time.
@@ -16,56 +19,24 @@ def get_metadata(data_file:str):
         for line in f:
             yield line
 
-def get_kaggle_credentials(kaggle_cred_path:str):
-    """Locates the kaggle.json file and retrieve the Kaggle API key
-
-    Args:
-        kaggle_cred_path (str): local path to the kaggle.json file
-
-    Returns:
-        str: Kaggle API key
-    """
-    # get kaggle api key. 
-    with open(kaggle_cred_path) as f:
-        kaggle_credentials = json.load(f)
-    # retrieve key
-    kaggle_username = kaggle_credentials["username"]
-    kaggle_key = kaggle_credentials["key"]
-
-    return kaggle_username, kaggle_key
-
-def create_arxiv(data_dir:str=None, n_papers:int=50_000, kaggle_cred_path:str=None):
+def create_arxiv(output_dir:str, n_papers:int=50_000, train_size:float=0.7, val_size:float=0.15, test_size:float=0.15):
     """Create data.json and metadata.json as per SPECTER specifications using arXiv dataset.
     The original dataset can be retrieved either using a locally-saved json, or by interacting with the Kaggle API.
     The Kaggle API functionality is not supported on Windows.
 
     Args:
-        data_dir (str, optional): path to local version of arxiv_metadata_json. Defaults to None.
+        output_dir (str): path where to save the files
         n_papers (int, optional): number of papers to consider in the subset. Defaults to 50_000.
-        kaggle_cred_path (str, optional): path to kaggle API key. Defaults to None.
 
     Raises:
         ValueError: one (and only one) option between using a local version of the arXiv dataset and using the Kaggle API should be selected.
     """
-    if data_dir is None and kaggle_cred_path is None:
-        raise ValueError("If you want to use the kaggle API, please specify USERNAME, API KEY and URL\nIf you want to use a local directory, specify the path where the arxiv json is stored.")
-    elif data_dir is not None and not kaggle_cred_path is None:
-        raise ValueError("You specify both a local path and your kaggle credentials. Only one should be specified.")
-    elif data_dir is not None:
-        # obtain metadata file
-        data_file = os.path.join(data_dir, 'arxiv-metadata-oai-snapshot.json')
-    else:
-        # obtain kaggle credentials
-        kaggle_username, kaggle_key = get_kaggle_credentials(kaggle_cred_path)
-        # connect to the API
-        subprocess.run(["kaggle", "config", "set", "-n", "username", "-v", f"{kaggle_username}"])
-        subprocess.run(["kaggle", "config", "set", "-n", "key", "-v", f"{kaggle_key}"])
-        # Run the Kaggle API command to download the dataset
-        subprocess.run(["kaggle", "datasets", "download", "-d", "Cornell-University/arxiv"])
-        subprocess.run(["unzip", "arxiv.zip"])
-        data_file = "arxiv-metadata-oai-snapshot.json"
+    api = KaggleApi()
+    api.authenticate()
+    api.dataset_download_files('Cornell-University/arxiv', path = f'{output_dir}/arxiv_data', unzip=True)
+    
+    arxiv_metadata = get_metadata(data_file=f'{output_dir}/arxiv_data/arxiv-metadata-oai-snapshot.json')
    
-    arxiv_metadata = get_metadata(data_file)
     # initialise counter: number of papers in the subset
     papers_in_subset = 0
     # initialise empty dictionary -> metadata.json will be built starting from this dictionary
@@ -101,9 +72,55 @@ def create_arxiv(data_dir:str=None, n_papers:int=50_000, kaggle_cred_path:str=No
                         # increment number of papers in the subset
                         papers_in_subset += 1
                         pbar.update(1)
+                        # subset is ready
                         if papers_in_subset == n_papers:
+                            # store metadata
+                            with open(f'{output_dir}/arxiv_data/metadata.json', 'w') as f:
+                                json.dump(metadata, f)
+                            # store the labels in 70/15/15 train/val/test split
+                            # get the paper_ids 
+                            paper_keys = list(labels.keys())
+                            # store them
+                            with open(f'{output_dir}/arxiv_data/keys.ids', 'w') as f:
+                                for key in paper_keys:
+                                    f.write(key + '\n')
+                            # randomly split them
+                            random.shuffle(paper_keys)
+                            train_papers = int(train_size * len(paper_keys))
+                            val_papers = int(val_size * len(paper_keys))
+                            # create 3 dictionaries with the given proportions
+                            train = {key: labels[key] for key in paper_keys[:train_papers]}
+                            val = {key: labels[key] for key in paper_keys[train_papers:train_papers+val_papers]}
+                            test = {key: labels[key] for key in paper_keys[train_papers+val_papers:]}
+                            os.makedirs(f'{output_dir}/arxiv_data/classification')
+                            # store the labels
+                            pd.DataFrame(train).T["topic"].to_csv(f'{output_dir}/arxiv_data/classification/train.csv')
+                            pd.DataFrame(val).T["topic"].to_csv(f'{output_dir}/arxiv_data/classification/val.csv')
+                            pd.DataFrame(test).T["topic"].to_csv(f'{output_dir}/arxiv_data/classification/test.csv')
                             break
             except:
                 pass 
 
-create_arxiv(data_dir=".")
+def restricted_float(x):
+    try:
+        x = float(x)
+    except ValueError:
+        raise argparse.ArgumentTypeError("%r not a floating-point literal" % (x,))
+
+    if x < 0.0 or x > 1.0:
+        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
+    return x
+
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--output-dir', help='directory where the user wishes to store the files', default = 'testing_datasets')
+    ap.add_argument('--train-size', help='size of train split', type=restricted_float, default=0.7)
+    ap.add_argument('--val-size', help='size of val split', type=restricted_float, default=0.15)
+    ap.add_argument('--n_papers', help='number of papers to consider in the subset', type=int, default=50_000)
+        
+    args = ap.parse_args()
+    train_size = args.train_size
+    val_size = args.val_size
+    test_size = 1 - train_size - val_size
+
+    create_arxiv(output_dir=args.output_dir, n_papers = args.n_papers, train_size = train_size, val_size = val_size, test_size = test_size)
