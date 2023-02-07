@@ -5,3 +5,5 @@ dill
 jsonlines
 pandas
 sklearn
+tqdm
+fastlangid
