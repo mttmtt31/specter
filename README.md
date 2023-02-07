@@ -75,7 +75,7 @@ The folder containing the two datasets can be downloaded from [here](https://dri
 
 For full reproducibility, it is also possible to create the arXiv dataset from scratch, using the Kaggle interface. Please follow this [guide](https://technowhisp.com/kaggle-api-python-documentation/) to correctly set-up the Kaggle Python API.
 ```python
-python scripts/create_arxiv.py --output-dir 'testing_datasets/' --kaggle-cred-path 'kaggle_credential_path/'
+python scripts/create_arxiv.py --output-dir 'testing_datasets/'
 ```
 
 ## 4- Embedding of the datasets
