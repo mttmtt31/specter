@@ -73,27 +73,16 @@ Specter requires two main files as input to embed the document. A text file with
 
 The folder containing the two datasets can be downloaded from [here](https://drive.google.com/drive/folders/11jbrbr-Rmgz-eG3cKb5dh4DUwzkLxo7F?usp=sharing). It is advisable saving it with the name `testing_datasets`. This folder will contain two subfolders, one for each dataset. Each subfolder contains a text file with the ids of the document, the corresponding json metadata file and the train/val/test split of the ids (in .csv file).
 
-For full reproducibility, it is also possible to create the arXiv dataset from scratch, providing the local path where the [json arxiv file](https://www.kaggle.com/datasets/Cornell-University/arxiv) is saved:
+For full reproducibility, it is also possible to create the arXiv dataset from scratch, using the Kaggle interface. Please follow this [guide](https://technowhisp.com/kaggle-api-python-documentation/) to correctly set-up the Kaggle Python API.
 ```python
-python scripts/create_arxiv.py --output-dir 'arxiv_path/'
-```
-Alternatively, it is also possible to create dataset using the Kaggle interface, providing the local path to the Kaggle API key.
-```python
-python scripts/create_arxiv.py --kaggle-cred-path 'kaggle_credential_path/'
+python scripts/create_arxiv.py --output-dir 'testing_datasets/' --kaggle-cred-path 'kaggle_credential_path/'
 ```
 
 ## 4- Embedding of the datasets
 To use the previously trained model to embed your data, run the following:
 
 ```python
-python scripts/embed.py 
---ids testing_datasets/arxiv_data/arxiv.ids
---metadata testing_datasets/arxiv_data/metadata.json
---model model-output-improvement/model.tar.gz
---output-file testing_datasets/arxiv_data/output_improvement.jsonl 
---vocab-dir data/vocab/ 
---batch-size 64 
---cuda-device 0
+python scripts/embed.py --ids testing_datasets/arxiv_data/arxiv.ids --metadata testing_datasets/arxiv_data/metadata.json --model model-output-improvement/model.tar.gz --output-file testing_datasets/arxiv_data/output_improvement.jsonl --vocab-dir data/vocab/ --batch-size 64 --cuda-device 0
 
 ```
 The model will run inference on the provided input and writes the output to `--output-file` directory (in the above example `output_improvement.jsonl` ).  
