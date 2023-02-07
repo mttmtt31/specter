@@ -15,6 +15,8 @@ conda install pytorch cudatoolkit=10.1 -c pytorch
 pip install -r requirements.txt  
 
 python setup.py install
+
+pip install overrides==3.1.0
 ```
 
 ## 1- Creation of the Scidocs dataset
@@ -31,6 +33,7 @@ The `data.json` file has the following structure (a nested dict):
                "docid13": {"count": 1}, ....
             }
 "docid2":   {  "docid21": {"count": 1}, ....
+            }
 ....}
 ```
 
@@ -46,12 +49,7 @@ python scripts/create_scidocs.py --data-dir scidocs_metadata --output-dir projec
 The `create_training_files.py` script processes this structure with a triplet sampler. The triplets can be formed either according to what described in the paper, or according to our improvement. Papers with `count=5` are considered positive candidates, papers with `count=1` considered hard negatives and other papers that are not cited are easy negatives. The number of hard negatives can be controlled by setting `--ratio_hard_negatives` argument in the script. The triplets can be formed as follows:
   
 ```python
-python specter/data_utils/create_training_files.py 
---data-dir project_data 
---metadata project_data/metadata.json 
---outdir project_data/preprocessed_improvement/ 
---max-training-triplets 150000 
---add-probabilities True 
+python specter/data_utils/create_training_files.py --data-dir project_data --metadata project_data/metadata.json --outdir project_data/preprocessed_improvement/ --max-training-triplets 150000 --add-probabilities True 
 ```
 
 `add-probabilities` is the parameter to set to choose between our improvement and Specter-like triplets.  It is advisable changing the `outdir` according to this parameter.
@@ -61,11 +59,7 @@ Due to limited resources, we also an optional parameter to set the maximum numbe
 Once the triplets are trained, the embedder can be trained as follows:
 
 ```python
-./scripts/run-exp-simple.sh -c experiment_configs/simple.jsonnet -s model-output-improvement/ --num-epochs 2 
---batch-size 4 
---train-path project_data/preprocessed-improvement/data-train.p 
---dev-path project_data/preprocessed-improvement/data-val.p 
---num-train-instances 150000 --cuda-device 0
+./scripts/run-exp-simple.sh -c experiment_configs/simple.jsonnet -s model-output-improvement/ --num-epochs 2 --batch-size 4 --train-path project_data/preprocessed-improvement/data-train.p --dev-path project_data/preprocessed-improvement/data-val.p --num-train-instances 150000 --cuda-device 0
 
 ```
 
