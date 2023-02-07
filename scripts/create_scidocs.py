@@ -119,7 +119,7 @@ def main(data_dir:str, output_dir:str, checkpoint:bool, checkpoint_freq:int, tra
     # save metadata.json in the same folder as data.json
     with open(metadata_path, 'w') as f:
         json.dump(data, f)
-    output_dir = os.path.join(output_dir, 'data.json')
+    output_file = os.path.join(output_dir, 'data.json')
 
     # initialise a dictionary which will associate to each paper_id, its citation network as per data.json structure
     citation_network = {}
@@ -155,17 +155,17 @@ def main(data_dir:str, output_dir:str, checkpoint:bool, checkpoint_freq:int, tra
             # If so, update the checkpoint and reset the citation network
             if n_iter > 0 and n_iter % checkpoint_freq == 0:
                 # check if this is the first checkpoint
-                if not os.path.isfile(output_dir):
-                    with open(output_dir, 'w') as f:
+                if not os.path.isfile(output_file):
+                    with open(output_file, 'w') as f:
                         json.dump(citation_network, f)
                 else:
                     # add the citation network to a pre existent checkpoint
-                    with open(output_dir, 'r') as f:
+                    with open(output_file, 'r') as f:
                         checkpoint_data = json.load(f)
                     # Update the checkpoint with new citation network
                     checkpoint_data.update(citation_network)
                     # Write the updated checkpoint back to the file
-                    with open(output_dir, 'w') as f:
+                    with open(output_file, 'w') as f:
                         json.dump(checkpoint_data, f)
 
                     # clean checkpoint from memory
@@ -176,22 +176,22 @@ def main(data_dir:str, output_dir:str, checkpoint:bool, checkpoint_freq:int, tra
     # add last checkpoint
     if checkpoint:
         # add the citation network to a pre existent checkpoint
-        with open(output_dir, 'r') as f:
+        with open(output_file, 'r') as f:
             checkpoint_data = json.load(f)
         # Update the checkpoint with new citation network
         checkpoint_data.update(citation_network)
         paper_keys = list(checkpoint_data.keys())
         # Write the updated checkpoint back to the file
-        with open(output_dir, 'w') as f:
+        with open(output_file, 'w') as f:
             json.dump(checkpoint_data, f)
     # save the citation network.
     else:
         paper_keys = list(citation_network.keys())
-        with open(output_dir, 'w') as f:
+        with open(output_file, 'w') as f:
             json.dump(citation_network, f)
 
     # create the train.txt, val.txt, test.txt file
-    split_data(paper_keys, 'train.txt', 'val.txt', 'test.txt', train_size, val_size, test_size)
+    split_data(paper_keys, f'{output_dir}/train.txt', f'{output_dir}/val.txt', f'{output_dir}/test.txt', train_size, val_size, test_size)
 
     
 
@@ -212,12 +212,12 @@ def restricted_float(x):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--data-dir', help='directory containing Scidocs metadata files')
+    ap.add_argument('--data-dir', help='directory containing Scidocs metadata files', default = 'scidocs_metadata')
     ap.add_argument('--output-dir', help='directory where the user wishes to save data.json')
     ap.add_argument('--checkpoint', help='parameter used to recover from crashes',  default = False, type = boolean_string)
     ap.add_argument('--checkpoint-freq', help='how often do you want to dump the results', default=20000, type=int)
-    ap.add_argument('--train-split', help='size of train split', type=restricted_float, default=0.7)
-    ap.add_argument('--val-split', help='size of val split', type=restricted_float, default=0.15)
+    ap.add_argument('--train-size', help='size of train split', type=restricted_float, default=0.7)
+    ap.add_argument('--val-size', help='size of val split', type=restricted_float, default=0.15)
     
     args = ap.parse_args()
     train_size = args.train_size
@@ -226,5 +226,3 @@ if __name__ == '__main__':
 
     main(data_dir=args.data_dir, output_dir=args.output_dir, checkpoint=args.checkpoint, checkpoint_freq=args.checkpoint_freq,
     train_size = train_size, val_size = val_size, test_size = test_size)
-
-# create_scidocs(data_dir='D:/nlp/scidocs/data', output_dir='output', checkpoint=True, checkpoint_freq=15)
