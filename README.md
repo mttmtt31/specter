@@ -37,13 +37,13 @@ The `data.json` file has the following structure (a nested dict):
 Where `docids` are Scidocs paper ids and `count` is a measure of importance of the relationship between two documents. We use the same notation used in Specter, namely `count=5` means direct citation while `count=1` refers to a citation of a citation. The dataset can be downloaded as follows
 
 ```bash
-bash scidocs_dataset.sh 
+bash bash/scidocs_dataset.sh 
 ```
 
 For full reproducibility, it is also possible to create the same dataset from scratch starting from the Scidocs metadata files. This can be done as follows:
 
 ```bash
-bash scidocs_metadata.sh 
+bash bash/scidocs_metadata.sh 
 ```
 
 ```python
@@ -88,7 +88,7 @@ Specter requires two main files as input to embed the document. A text file with
 
 The two datasets can be downloaded as follows:
 ```bash
-bash embedding_datasets.sh 
+bash bash/embedding_datasets.sh 
 ```
 This command will create a folder called `embedding_datasets` containing one folder for each dataset. Each subfolder contains a text file with the ids of the document, the corresponding json metadata file and the train/val/test split of the ids (in .csv file).
 
