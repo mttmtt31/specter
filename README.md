@@ -34,22 +34,13 @@ The `data.json` file has the following structure (a nested dict):
 ....}
 ```
 
-Where `docids` are Scidocs paper ids and `count` is a measure of importance of the relationship between two documents. We use the same notation used in Specter, namely `count=5` means direct citation while `count=1` refers to a citation of a citation. The dataset can be downloaded as follows
+Where `docids` are Scidocs paper ids and `count` is a measure of importance of the relationship between two documents. We use the same notation used in Specter, namely `count=5` means direct citation while `count=1` refers to a citation of a citation. The folder containing the dataset can be downloaded [here](https://drive.google.com/drive/folders/1-gu4oylT_cE-h5gRNGpxXaMvExia0BsD?usp=share_link). It is advisable to save the folder as `project_data`. 
 
-```bash
-bash bash/scidocs_dataset.sh 
-```
-
-For full reproducibility, it is also possible to create the same dataset from scratch starting from the Scidocs metadata files. This can be done as follows:
-
-```bash
-bash bash/scidocs_metadata.sh 
-```
+For full reproducibility, it is also possible to create the same dataset from scratch starting from the Scidocs metadata files. Once the [folder](https://drive.google.com/drive/folders/1iP-LHbYIgcYQA_0_yij75ZeFJ85UmqwG?usp=share_link) containing the 3 metadata files is downloaded, simply run the following command, changing the `data-dir` parameter according to the name of the folder where you saved the 3 metadata files.
 
 ```python
-python scripts/create_scidocs.py --output-dir project_data
+python scripts/create_scidocs.py --data-dir scidocs_metadata --output-dir project_data
 ```
-The bash command saves the json metadata files in a folder called `project_data`, which is then used to create the dataset itself.
 
 ## 2- Create training triplets
 The `create_training_files.py` script processes this structure with a triplet sampler. The triplets can be formed either according to what described in the paper, or according to our improvement. Papers with `count=5` are considered positive candidates, papers with `count=1` considered hard negatives and other papers that are not cited are easy negatives. The number of hard negatives can be controlled by setting `--ratio_hard_negatives` argument in the script. The triplets can be formed as follows:
@@ -86,19 +77,15 @@ Specter requires two main files as input to embed the document. A text file with
 1. all the Scidocs papers for Mag and Mesh classification task
 2. subset of 50000 arXiv papers.
 
-The two datasets can be downloaded as follows:
-```bash
-bash bash/embedding_datasets.sh 
-```
-This command will create a folder called `embedding_datasets` containing one folder for each dataset. Each subfolder contains a text file with the ids of the document, the corresponding json metadata file and the train/val/test split of the ids (in .csv file).
+The folder containing the two datasets can be downloaded from [here](https://drive.google.com/drive/folders/11jbrbr-Rmgz-eG3cKb5dh4DUwzkLxo7F?usp=sharing). It is advisable saving it with the name `testing_datasets`. This folder will contain two subfolders, one for each dataset. Each subfolder contains a text file with the ids of the document, the corresponding json metadata file and the train/val/test split of the ids (in .csv file).
 
 For full reproducibility, it is also possible to create the arXiv dataset from scratch, providing the local path where the [json arxiv file](https://www.kaggle.com/datasets/Cornell-University/arxiv) is saved:
 ```python
-python scripts/create_scidocs.py --output-dir 'arxiv_path/'
+python scripts/create_arxiv.py --output-dir 'arxiv_path/'
 ```
 Alternatively, it is also possible to create dataset using the Kaggle interface, providing the local path to the Kaggle API key.
 ```python
-python scripts/create_scidocs.py --kaggle-cred-path 'kaggle_credential_path/'
+python scripts/create_arxiv.py --kaggle-cred-path 'kaggle_credential_path/'
 ```
 
 ## 4- Embedding of the datasets
