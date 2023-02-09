@@ -14,7 +14,7 @@ tar -xzvf $destination_path
 #### MODELS ####
 mkdir "pretrained_models"
 
-id=""
+id="1CajAbbmrNZo_TNc24VVg8j2Qdz8hJn0N"
 destination_path="pretrained_models/model_specter.tar.gz"
 
 echo "Downloading model: specter"
@@ -26,7 +26,7 @@ echo "Extracting model: specter..."
 # Extract the tar.gz file
 tar -xzvf $destination_path
 
-id=""
+id="1D-e1qcM_bMHYPkl7vUFSL6a5PbaBfSZW"
 destination_path="pretrained_models/model_spectroid.tar.gz"
 
 echo "Downloading model: spectroid"
