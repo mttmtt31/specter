@@ -17,7 +17,12 @@ pip install -r requirements.txt
 python setup.py install
 
 pip install overrides==3.1.0
+
+bash/download.sh
 ```
+After running these commands, the environment will be set up and additional files will be downloaded. In particular, in the folder `pretrained_models` one could find the two models we trained: SPECTER and SPECTROID. These models are fully functional and can be used to embed your datasets as per point 4 of the documentation.
+
+To have a full grasp of our work, please stick to the instructions here below.
 
 ## 1- Creation of the Scidocs dataset
 To train an embedder, we created a new dataset starting from the metadata available on the [Scidocs repository](https://github.com/allenai/scidocs). Specifically, the dataset we created is made of:
@@ -37,9 +42,10 @@ The `data.json` file has the following structure (a nested dict):
 ....}
 ```
 
-Where `docids` are Scidocs paper ids and `count` is a measure of importance of the relationship between two documents. We use the same notation used in Specter, namely `count=5` means direct citation while `count=1` refers to a citation of a citation. The folder containing the dataset can be downloaded [here](https://drive.google.com/drive/folders/1-gu4oylT_cE-h5gRNGpxXaMvExia0BsD?usp=share_link). It is advisable to save the folder as `project_data`. 
+Where `docids` are Scidocs paper ids and `count` is a measure of importance of the relationship between two documents. We use the same notation used in Specter, namely `count=5` means direct citation while `count=1` refers to a citation of a citation. 
+The dataset is already available in the folder `project_data`.
 
-For full reproducibility, it is also possible to create the same dataset from scratch starting from the Scidocs metadata files. Once the [folder](https://drive.google.com/drive/folders/1iP-LHbYIgcYQA_0_yij75ZeFJ85UmqwG?usp=share_link) containing the 3 metadata files is downloaded, simply run the following command, changing the `data-dir` parameter according to the name of the folder where you saved the 3 metadata files.
+For full reproducibility, it is also possible to create the same dataset from scratch starting from the Scidocs metadata files. Stemming from the files inside the folder `scidocs_metadata`, simply run:
 
 ```python
 python scripts/create_scidocs.py --data-dir scidocs_metadata --output-dir project_data
@@ -71,11 +77,11 @@ Specter requires two main files as input to embed the document. A text file with
 1. all the Scidocs papers for Mag and Mesh classification task
 2. subset of 50000 arXiv papers.
 
-The folder containing the two datasets can be downloaded from [here](https://drive.google.com/drive/folders/11jbrbr-Rmgz-eG3cKb5dh4DUwzkLxo7F?usp=sharing). It is advisable saving it with the name `testing_datasets`. This folder will contain two subfolders, one for each dataset. Each subfolder contains a text file with the ids of the document, the corresponding json metadata file and the train/val/test split of the ids (in .csv file).
+The two datasets are already available in the folder `testing_datasets`. This folder contains two subfolders, one for each dataset. Each subfolder contains a text file with the ids of the document, the corresponding json metadata file and the train/val/test split of the ids (in .csv file).
 
-For full reproducibility, it is also possible to create the arXiv dataset from scratch, using the Kaggle interface. Please follow this [guide](https://technowhisp.com/kaggle-api-python-documentation/) to correctly set-up the Kaggle Python API.
+For full reproducibility, one can create the `testing_datasets/arxiv_data` folder from scratch, using the Kaggle interface. Please follow this [guide](https://technowhisp.com/kaggle-api-python-documentation/) to correctly set-up the Kaggle Python API first.
 ```python
-python scripts/create_arxiv.py --output-dir 'testing_datasets/'
+python scripts/create_arxiv.py --output-dir 'kaggle_dat/'
 ```
 
 ## 4- Embedding of the datasets
