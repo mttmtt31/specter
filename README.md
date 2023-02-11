@@ -2,6 +2,8 @@
 
 # SPECTER: Document-level Representation Learning using Citation-informed Transformers
 
+> **NOTE**: Similarly to the [original repo](https://github.com/allenai/specter), this repo does not work on Windows.
+
 ## 0- Download repo
 
 ```python
@@ -20,7 +22,7 @@ pip install overrides==3.1.0
 
 bash/download.sh
 ```
-After running these commands, the environment will be set up and additional files will be downloaded. In particular, in the folder `pretrained_models` one could find the two models we trained: SPECTER and SPECTROID. These models are fully functional and can be used to embed your datasets as per point 4 of the documentation.
+After running these commands, the environment will be set up and additional files will be downloaded. In particular, in the folder `pretrained_models` one could find the two models we trained: SPECTER and SPECTROID. These models are fully functional and can be used to embed your datasets as per point 4 of the documentation, passing one of the two models' filename as parameter of `--model`.
 
 To have a full grasp of our work, please stick to the instructions here below.
 
