@@ -1,3 +1,8 @@
+echo "Downloading specter supporting files"
+destination_path = "specter_supporting_files.tar.gz"
+wget https://ai2-s2-research-public.s3-us-west-2.amazonaws.com/specter/archive.tar.gz -O $destination_path
+tar -xzvf $destination_path
+
 # Set the URL of the Google Drive file
 id="12705EBf4KgPR5Q3aYeJP_3EcM73pPmd4"
 destination_path="archive.tar.gz"
