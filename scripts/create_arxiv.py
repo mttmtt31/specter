@@ -82,7 +82,7 @@ def create_arxiv(output_dir:str, n_papers:int=50_000, train_size:float=0.7, val_
                             # get the paper_ids 
                             paper_keys = list(labels.keys())
                             # store them
-                            with open(f'{output_dir}/arxiv_data/keys.ids', 'w') as f:
+                            with open(f'{output_dir}/arxiv_data/arxiv.ids', 'w') as f:
                                 for key in paper_keys:
                                     f.write(key + '\n')
                             # randomly split them
