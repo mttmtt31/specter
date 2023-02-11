@@ -31,6 +31,7 @@ def create_arxiv(output_dir:str, n_papers:int=50_000, train_size:float=0.7, val_
     Raises:
         ValueError: one (and only one) option between using a local version of the arXiv dataset and using the Kaggle API should be selected.
     """
+    print('Connecting to Kaggle...')
     api = KaggleApi()
     api.authenticate()
     api.dataset_download_files('Cornell-University/arxiv', path = f'{output_dir}/arxiv_data', unzip=True)
